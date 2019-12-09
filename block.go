@@ -41,16 +41,16 @@ func (b *Block) HashBlock(nonce int, target int) []byte {
   return data
 }
 
-func (b *Block) Serialize() []byte {
+func (block *Block) Serialize() []byte {
   var result bytes.Buffer
   encoder := gob.NewEncoder(&result)
-  _ = encoder.Encode(b)
+  _ = encoder.Encode(block)
   return result.Bytes()
 }
 
-func Deserialize(d []byte) *Block {
+func Deserialize(bArr []byte) *Block {
   var block Block
-  decoder := gob.NewDecoder(bytes.NewReader(d))
+  decoder := gob.NewDecoder(bytes.NewReader(bArr))
   _ = decoder.Decode(&block)
   return &block
 }

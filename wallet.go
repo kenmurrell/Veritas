@@ -29,10 +29,10 @@ func NewWallet() *Wallet {
 
 func (w Wallet) GetAddress() string {
 	pubKeyHash := HashPublicKey(w.PublicKey)
-	versionedPayLoad := append([]byte{version}, pubKeyHash...)
-	checksum := checksum(versionedPayLoad)
-	fullPayload := append(versionedPayLoad, checksum...)
-	address := hex.EncodeToString(fullPayload) 	//TODO: convert to base58 encoding
+	versionedHash := append([]byte{version}, pubKeyHash...)
+	checksum := checksum(versionedHash)
+	fullHash := append(versionedHash, checksum...)
+	address := hex.EncodeToString(fullHash) 	//TODO: convert to base58 encoding
 	return address
 }
 

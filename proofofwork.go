@@ -5,6 +5,7 @@ import (
   "crypto/sha256"
   "fmt"
   "log"
+  "math"
   "math/big"
   "encoding/binary"
 )
@@ -14,7 +15,7 @@ type ProofOfWork struct {
   target *big.Int
 }
 
-const targetBits = 24
+const targetBits = 20
 
 func NewProofOfWork(b *Block) *ProofOfWork {
   target := big.NewInt(1)
@@ -25,10 +26,10 @@ func NewProofOfWork(b *Block) *ProofOfWork {
 
 func (pow *ProofOfWork) Generate() (int, []byte) {
   var hashInt big.Int
-  var hash[32] byte
+  var hash [32]byte
   nonce := 0
   fmt.Printf("--> mining a new block...")
-  for nonce < 4 {
+  for nonce < math.MaxInt64 {
     data := pow.block.HashBlock(nonce, targetBits)
     hash = sha256.Sum256(data)
     fmt.Printf("\r%x", hash)
@@ -39,7 +40,7 @@ func (pow *ProofOfWork) Generate() (int, []byte) {
 			nonce++
 		}
   }
-  fmt.Print("\n\n")
+  fmt.Printf("\n")
 	return nonce, hash[:]
 }
 

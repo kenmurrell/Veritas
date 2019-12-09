@@ -5,25 +5,17 @@ import (
 )
 
 func main() {
-	// portfolio := NewPortfolio()
-	// addr1 := portfolio.CreateWallet()
-	// person1 := portfolio.GetWallet(addr1)
-	// addr2 := portfolio.CreateWallet()
-	// person2 := portfolio.GetWallet(addr2)
-	// portfolio.SaveToFile("port.dat")
 
-	portfolio, _ := LoadPortfolio("port.dat")
-	person1 := portfolio.GetWallet("001b950fbf3d818d9b740907b8c290178548cc48c275b49fd3")
-	person2 := portfolio.GetWallet("0003ee92244c20027b9406f46fcff52297900aa9528a2675ac")
+	p1, p2 := MyWallets()
+	bc := MyBlockchain(p1)
+	balance1 := bc.CalculateBalance(p1.GetAddress())
+	fmt.Printf("-->p1: %d\n", balance1)
+	balance2 := bc.CalculateBalance(p2.GetAddress())
+	fmt.Printf("-->p2: %d\n", balance2)
 
-	fmt.Printf("Person1 wallet address: %s %t\n", person1.GetAddress(), ValidateAddress(person1.GetAddress()))
-	fmt.Printf("Person2 wallet address: %s %t\n", person2.GetAddress(), ValidateAddress(person2.GetAddress()))
-	fmt.Printf("Fakeper wallet address: %s %t\n", "0003ee92244c20027b9406f46fcff52297900aa9528a2675ab", ValidateAddress("0003ee92244c20027b9406f46fcff52297900aa9528a2675ab"))
-
-	 //_ = CreateBlockchain(person1.GetAddress())
-
-	 _ = LoadBlockchain(person1.GetAddress())
-
-	 
-
+	Send(bc, p1, p2.GetAddress(), 1)
+	balance1 = bc.CalculateBalance(p1.GetAddress())
+	fmt.Printf("-->p1: %d\n", balance1)
+	balance2 = bc.CalculateBalance(p2.GetAddress())
+	fmt.Printf("-->p2: %d\n", balance2)
 }
