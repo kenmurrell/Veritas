@@ -103,15 +103,16 @@ func (bc *Blockchain) MineBlock(size int) error {
 	}
 	//Get the last transactions
 	txs := make([]*Transaction, 0)
-	_ = bc.db.View(func(tx *bolt.Tx) error {
+	_ = bc.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(miningBucket))
 		cur := bucket.Cursor()
-		for k, v := cur.First(); k != nil && len(txs) <= size; k, v = cur.Next() {
+		for k, v := cur.First(); k != nil && len(txs) < size; k, v = cur.Next() {
 			tx := DeserializeToTX(v)
 			if tx.Validate() {
 				fmt.Printf("--> Transaction verified: %x\n", tx.ID)
 				txs = append(txs, tx)
 			}
+			_ = bucket.Delete(k)
 		}
 		return nil
 	})
@@ -165,7 +166,7 @@ func (bc *Blockchain) FindTransaction(ID []byte) (Transaction, error) {
 			break
 		}
 	}
-	return Transaction{}, errors.New("Not found\n")
+	return Transaction{}, errors.New("ERROR: Transaction not found\n")
 }
 
 func (bc *Blockchain) CalculateBalance(address string) int {

@@ -20,7 +20,7 @@ type Config struct {
 
 func (cli *CLI) validateArgs() {
 	if len(os.Args) < 2 {
-		//cli.printUsage()
+		cli.PrintUsage()
 		os.Exit(1)
 	}
 }
@@ -74,7 +74,7 @@ func (cli *CLI) Run() {
 		_ = printChainCmd.Parse(os.Args[2:])
 	default:
 		fmt.Printf("--> Unrecognized command")
-    //cli.printUsage()
+    cli.PrintUsage()
 		os.Exit(1)
 	}
 	if balanceCmd.Parsed() {
@@ -171,7 +171,10 @@ func (cli *CLI) Mine(address string, num int) {
     log.Panic(err.Error())
   }
   defer bc.Close()
-  bc.MineBlock(num)
+  err = bc.MineBlock(num)
+  if err != nil {
+    log.Panic(err.Error())
+  }
   fmt.Printf("--> block mined\n")
 }
 
@@ -238,7 +241,7 @@ func (cli *CLI) PrintChain() {
 }
 
 func (cli* CLI) PrintUsage(){
-  fmt.Printf("See README.md for usage")
+  fmt.Printf("--> see README.md for usage\n")
 }
 
 func loadConfig() *Config {
