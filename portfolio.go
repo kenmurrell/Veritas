@@ -20,11 +20,11 @@ func NewPortfolio() *Portfolio {
   return &p
 }
 
-func (p *Portfolio) CreateWallet() string {
+func (p *Portfolio) CreateWallet() Wallet {
   wallet := NewWallet()
   address := fmt.Sprintf("%s", wallet.GetAddress())
   p.Wallets[address] = wallet
-	return address
+	return *wallet
 }
 
 func (p Portfolio) GetWallet(address string) Wallet {
