@@ -5,6 +5,7 @@ import (
   "time"
   "encoding/gob"
   "crypto/sha256"
+  "fmt"
 )
 
 type Block struct {
@@ -53,4 +54,10 @@ func Deserialize(bArr []byte) *Block {
   decoder := gob.NewDecoder(bytes.NewReader(bArr))
   _ = decoder.Decode(&block)
   return &block
+}
+
+func (block *Block) ToString() {
+  fmt.Printf("============ Block %x ============\n", block.Hash)
+  fmt.Printf("Timestamp: %s\n", time.Unix(block.Timestamp, 0))
+  fmt.Printf("Previous block: %x\n", block.PrevHash)
 }

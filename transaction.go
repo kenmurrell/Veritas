@@ -8,10 +8,16 @@ import (
 	"math/big"
 	"crypto/sha256"
 	"errors"
+	"encoding/gob"
+	"bytes"
+	"fmt"
+	mathrand "math/rand"
+	"time"
 )
 
 type Transaction struct {
 	ID   []byte
+	Timestamp   int64
 	FromAddr string
 	ToAddr string
 	Amount int
@@ -24,14 +30,19 @@ const subsidy = 10
 // TODO: Convert this to UXTO when i get the chance?
 func NewGenesisTransaction(toAddr, startData string) *Transaction {
 	id := []byte("GENESIS")
-	tx := Transaction{id, startData, toAddr, subsidy, nil, nil}
+	timestamp := time.Now().UnixNano()
+	tx := Transaction{id, timestamp, startData, toAddr, subsidy, nil, nil}
 	return &tx
 }
 
 func NewTransaction(fromAddr, toAddr string, amount int) *Transaction {
-	//verify addreses here
-	hash := sha256.Sum256([]byte(fromAddr + toAddr + strconv.Itoa(amount)))
-	tx := &Transaction{hash[:], fromAddr, toAddr, amount, nil, nil}
+	if !ValidateAddress(fromAddr) && !ValidateAddress(toAddr) {
+		panic(errors.New("Addresses not valid"))
+	}
+	timestamp := time.Now().UnixNano()
+	mathrand.Seed(timestamp)
+	hash := sha256.Sum256([]byte(fromAddr + toAddr + strconv.Itoa(mathrand.Intn(1000))))
+	tx := &Transaction{hash[:], timestamp, fromAddr, toAddr, amount, nil, nil}
 	return tx
 }
 
@@ -66,4 +77,26 @@ func (tx *Transaction) Validate() bool {
 		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
 		status := ecdsa.Verify(&rawPubKey, tx.ID, &r, &s)
 		return status
+}
+
+func (tx *Transaction) Serialize() []byte {
+  var result bytes.Buffer
+  encoder := gob.NewEncoder(&result)
+  _ = encoder.Encode(tx)
+  return result.Bytes()
+}
+
+func DeserializeToTX(enc []byte) *Transaction {
+  var tx Transaction
+  decoder := gob.NewDecoder(bytes.NewReader(enc))
+  _ = decoder.Decode(&tx)
+  return &tx
+}
+
+func (tx *Transaction) ToString() {
+	fmt.Printf("\t===== Transaction %x =====\n", tx.ID)
+	fmt.Printf("\tTimestamp: %s\n", time.Unix(0, tx.Timestamp))
+	fmt.Printf("\tFrom Address: %s\n", tx.FromAddr)
+	fmt.Printf("\tTo Address: %s\n", tx.ToAddr)
+	fmt.Printf("\tAmount: %d\n", tx.Amount)
 }

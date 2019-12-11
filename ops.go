@@ -1,5 +1,9 @@
 package main
 
+import (
+  "fmt"
+)
+
 
 func MyWallets() (*Wallet, *Wallet) {
   portfolio, _ := LoadPortfolio("port.dat")
@@ -22,9 +26,28 @@ func MyBlockchain(w *Wallet) *Blockchain {
 }
 
 func Send(bc *Blockchain, w *Wallet, addr string, amount int) {
-  tx := NewTransaction(w.GetAddress(), addr, 1)
+  tx := NewTransaction(w.GetAddress(), addr, amount)
 	_ = tx.Sign(w)
   if tx.Validate() {
-    bc.MineBlock([]*Transaction{tx})
+    bc.AddToQueue(tx)
+  }
+}
+
+func Mine(bc *Blockchain, addr string, num int) {
+  bc.MineBlock(num)
+}
+
+func (bc *Blockchain) Printchain() {
+  fmt.Printf("--> Printing chain...\n")
+  bci := bc.Iterator()
+  for {
+    block := bci.Next()
+    block.ToString()
+    for _, tx := range block.Transactions {
+			tx.ToString()
+		}
+    if len(block.PrevHash) == 0 {
+      break
+    }
   }
 }

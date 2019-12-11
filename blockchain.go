@@ -13,7 +13,8 @@ import (
 )
 
 const dbFile = "blockchain.db"
-const bucketName = "blocks"
+const blockchainBucket = "blocks"
+const miningBucket = "queue"
 
 
 type Blockchain struct {
@@ -42,24 +43,29 @@ func CreateBlockchain(address string) *Blockchain {
 	var tip []byte
   db, err := bolt.Open(dbFile, 0600, nil)
   if err != nil {
-		log.Panic(err)
+		panic(err)
 	}
+	fmt.Printf("--> Creating genesis block\n")
   err = db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucket([]byte(bucketName))
+		bucket1, err := tx.CreateBucket([]byte(blockchainBucket))
 		if err != nil {
-			log.Panic(err)
+			panic(err)
 		}
 		genesistransaction := NewGenesisTransaction(address, "BLOCKCHAIN")
 		genesisblock := NewGenesisBlock(genesistransaction)
-		err = bucket.Put(genesisblock.Hash, genesisblock.Serialize())
+		err = bucket1.Put(genesisblock.Hash, genesisblock.Serialize())
 		if err != nil {
 			log.Panic(err)
 		}
-		err = bucket.Put([]byte("l"), genesisblock.Hash)
+		err = bucket1.Put([]byte("l"), genesisblock.Hash)
 		if err != nil {
-			log.Panic(err)
+			panic(err)
 		}
 		tip = genesisblock.Hash
+		_, err = tx.CreateBucket([]byte(miningBucket))
+		if err != nil {
+			panic(err)
+		}
 		return nil
 	})
 	bc := Blockchain{tip, db}
@@ -73,7 +79,7 @@ func LoadBlockchain() *Blockchain {
 		panic(err)
 	}
 	err = db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(bucketName))
+		bucket := tx.Bucket([]byte(blockchainBucket))
 		tip = bucket.Get([]byte("l"))
 		return nil
 	})
@@ -81,19 +87,50 @@ func LoadBlockchain() *Blockchain {
 	return &bc
 }
 
-func (bc *Blockchain) MineBlock(transactions []*Transaction) {
+func (bc *Blockchain) AddToQueue(tr *Transaction) {
+	err := bc.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(miningBucket))
+		err := bucket.Put(tr.ID, tr.Serialize())
+		return err
+	})
+	if(err != nil){
+		panic(err)
+	}
+}
+
+func (bc *Blockchain) MineBlock(size int) {
+	//Get has from prev block
 	var lastHash []byte
 	err := bc.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(bucketName))
+		bucket := tx.Bucket([]byte(blockchainBucket))
 		lastHash = bucket.Get([]byte("l"))
 		return nil
 	})
 	if err != nil {
 		panic(err)
 	}
-  block := NewBlock(transactions, lastHash)
+	//Get the last transactions
+	txs := make([]*Transaction, 0)
+	err = bc.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(miningBucket))
+		cur := bucket.Cursor()
+		for k, v := cur.First(); k != nil && len(txs) <= size; k, v = cur.Next() {
+			tx := DeserializeToTX(v)
+			if tx.Validate() {
+				fmt.Printf("--> Transaction verified: %x\n", tx.ID)
+				txs = append(txs, tx)
+			}
+		}
+		return nil
+	})
+	if len(txs) == 0 {
+		panic(errors.New("No transactions to mine"))
+	}
+	if err != nil {
+	}
+  block := NewBlock(txs, lastHash)
 	err = bc.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(bucketName))
+		bucket := tx.Bucket([]byte(blockchainBucket))
 		err := bucket.Put(block.Hash, block.Serialize())
 		if err != nil {
 			panic(err)
@@ -118,7 +155,7 @@ func (bc *Blockchain) Iterator() *BlockchainIterator {
 func (bci *BlockchainIterator) Next() *Block {
 	var block *Block
 	_ = bci.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(bucketName))
+		bucket := tx.Bucket([]byte(blockchainBucket))
 		encodedBlock := bucket.Get(bci.currentHash)
 		block = Deserialize(encodedBlock)
 		return nil
