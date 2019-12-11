@@ -83,6 +83,13 @@ func LoadBlockchain(file string) (*Blockchain, error) {
 }
 
 func (bc *Blockchain) AddToQueue(tr *Transaction) error {
+	senderBal := bc.CalculateBalance(tr.FromAddr)
+	if senderBal < tr.Amount {
+		return errors.New("ERROR: Amount exceeds wallet balance")
+	}
+	if !tr.ValidateSignature() {
+		return errors.New("ERROR: Transaction signature validation failed")
+	}
 	err := bc.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(miningBucket))
 		err := bucket.Put(tr.ID, tr.Serialize())
@@ -109,11 +116,13 @@ func (bc *Blockchain) MineBlock(size int) error {
 		cur := bucket.Cursor()
 		for k, v := cur.First(); k != nil && len(txs) < size; k, v = cur.Next() {
 			tx := DeserializeToTX(v)
-			if tx.Validate() {
+			if tx.ValidateSignature() && bc.ValidateAmount(tx.FromAddr, tx.Amount) {
 				fmt.Printf("--> Transaction verified: %x\n", tx.ID)
 				txs = append(txs, tx)
+				_ = bucket.Delete(k)
+			} else {
+				fmt.Printf("--? Transaction invalid: %x\n", tx.ID)
 			}
-			_ = bucket.Delete(k)
 		}
 		return nil
 	})
@@ -135,6 +144,11 @@ func (bc *Blockchain) MineBlock(size int) error {
 		return nil
 	})
 	return err
+}
+
+func (bc *Blockchain) ValidateAmount(address string, amount int) bool {
+	balance := bc.CalculateBalance(address)
+	return balance >= amount
 }
 
 func (bc *Blockchain) Iterator() *BlockchainIterator {

@@ -60,7 +60,7 @@ func (tx *Transaction) Sign(wallet *Wallet) error {
 	return nil
 }
 
-func (tx *Transaction) Validate() bool {
+func (tx *Transaction) ValidateSignature() bool {
 		//regenerate r, s
 		r := big.Int{}
 		s := big.Int{}

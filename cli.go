@@ -94,7 +94,7 @@ func (cli *CLI) Run() {
 			sendCmd.Usage()
 			os.Exit(1)
 		}
-		cli.Send(*toAddr, *fromAddr, *amount)
+		cli.Send(*fromAddr, *toAddr, *amount)
 	}
   if mineCmd.Parsed() {
     if *mineAddr == "" {
@@ -166,10 +166,9 @@ func (cli *CLI) Send(fromAddr, toAddr string, amount int) {
   if err != nil {
     log.Panic(err.Error())
   }
-  if tx.Validate() {
-    bc.AddToQueue(tx)
-  } else {
-    log.Panic("ERROR: Cannot validate transaction")
+  err = bc.AddToQueue(tx)
+  if err != nil {
+    log.Panic(err.Error())
   }
 	fmt.Println("--> complete\n")
 }
