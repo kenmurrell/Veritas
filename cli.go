@@ -5,10 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+  "gopkg.in/yaml.v2"
+  "io/ioutil"
 )
 
 type CLI struct {
-	bc *Blockchain
+  conf *Config
+}
+
+type Config struct {
+  BlockchainFile string `yaml:"blockchainFile"`
+  PortfolioFile string `yaml:"portfolioFile"`
 }
 
 func (cli *CLI) validateArgs() {
@@ -16,6 +23,10 @@ func (cli *CLI) validateArgs() {
 		//cli.printUsage()
 		os.Exit(1)
 	}
+}
+
+func start() *CLI {
+  return &CLI{loadConfig()}
 }
 
 func (cli *CLI) Run() {
@@ -112,8 +123,11 @@ func (cli *CLI) GetBalance(address string) {
 	if !ValidateAddress(address) {
 		log.Panic("ERROR: Address not valid!\n")
 	}
-	bc := LoadBlockchain()
-	defer bc.Close()
+	bc, err := LoadBlockchain(cli.conf.BlockchainFile)
+  if err != nil {
+    log.Panic(err.Error())
+  }
+  defer bc.Close()
   balance := bc.CalculateBalance(address)
 	fmt.Printf("--> balance of '%s': %d\n", address, balance)
 }
@@ -125,14 +139,25 @@ func (cli *CLI) Send(fromAddr, toAddr string, amount int) {
 	if !ValidateAddress(toAddr) {
 		log.Panic("ERROR: Recipient is not valid\n")
 	}
-	bc := LoadBlockchain()
-	defer bc.Close()
-  portfolio, _ := LoadPortfolio("portfolio.dat")
+	bc, err := LoadBlockchain(cli.conf.BlockchainFile)
+  if err != nil {
+    log.Panic(err.Error())
+  }
+  defer bc.Close()
+  portfolio, err := LoadPortfolio(cli.conf.PortfolioFile)
+  if err != nil {
+    log.Panic(err.Error())
+  }
   wallet := portfolio.GetWallet(fromAddr)
   tx := NewTransaction(wallet.GetAddress(), toAddr, amount)
-	_ = tx.Sign(&wallet)
+	err = tx.Sign(&wallet)
+  if err != nil {
+    log.Panic(err.Error())
+  }
   if tx.Validate() {
     bc.AddToQueue(tx)
+  } else {
+    log.Panic("ERROR: Cannot validate transaction")
   }
 	fmt.Println("--> complete\n")
 }
@@ -141,8 +166,11 @@ func (cli *CLI) Mine(address string, num int) {
   if !ValidateAddress(address) {
 		log.Panic("ERROR: Sender is not valid\n")
 	}
-  bc := LoadBlockchain()
-	defer bc.Close()
+  bc, err := LoadBlockchain(cli.conf.BlockchainFile)
+  if err != nil {
+    log.Panic(err.Error())
+  }
+  defer bc.Close()
   bc.MineBlock(num)
   fmt.Printf("--> block mined\n")
 }
@@ -151,25 +179,38 @@ func (cli *CLI) CreateBlockchain(address string) {
 	if !ValidateAddress(address) {
 		log.Panic("ERROR: Address is not valid\n")
 	}
-	bc := CreateBlockchain(address)
-	bc.Close()
+	bc, err := CreateBlockchain(cli.conf.BlockchainFile, address)
+  if err != nil {
+    log.Panic(err.Error())
+  }
+  defer bc.Close()
 	fmt.Println("--> blockchain created\n")
 }
 
 func (cli *CLI) CreatePortfolio() {
   portfolio := NewPortfolio()
   portfolio.SaveToFile("portfolio.dat")
+  fmt.Printf("--> portfolio created\n")
 }
 
 func (cli *CLI) CreateWallet() {
-  portfolio, _ := LoadPortfolio("portfolio.dat")
+  portfolio, err := LoadPortfolio(cli.conf.PortfolioFile)
+  if err != nil {
+    log.Panic(err.Error())
+  }
 	wallet := portfolio.CreateWallet()
-	portfolio.SaveToFile("portfolio.dat")
+	err = portfolio.SaveToFile("portfolio.dat")
+  if err != nil {
+    log.Panic(err.Error())
+  }
 	fmt.Printf("--> new address: %s\n", wallet.GetAddress())
 }
 
 func (cli *CLI) ListAddresses() {
-	portfolio, _ := LoadPortfolio("portfolio.dat")
+	portfolio, err := LoadPortfolio(cli.conf.PortfolioFile)
+  if err != nil {
+    log.Panic(err.Error())
+  }
   addresses := portfolio.GetAllAddresses()
   fmt.Printf("--> all addresses:\n")
 	for _, address := range addresses {
@@ -178,7 +219,10 @@ func (cli *CLI) ListAddresses() {
 }
 
 func (cli *CLI) PrintChain() {
-	bc := LoadBlockchain()
+	bc, err := LoadBlockchain(cli.conf.BlockchainFile)
+  if err != nil {
+    log.Panic(err.Error())
+  }
 	defer bc.Close()
   bci := bc.Iterator()
   for {
@@ -191,4 +235,21 @@ func (cli *CLI) PrintChain() {
       break
     }
   }
+}
+
+func (cli* CLI) PrintUsage(){
+  fmt.Printf("See README.md for usage")
+}
+
+func loadConfig() *Config {
+  var config Config
+  src, err := ioutil.ReadFile("config.yaml")
+  if err != nil {
+    log.Panic(err)
+  }
+  err = yaml.Unmarshal(src, &config)
+  if err != nil {
+    log.Panic(err.Error())
+  }
+  return &config
 }

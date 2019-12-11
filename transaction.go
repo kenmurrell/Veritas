@@ -48,11 +48,11 @@ func NewTransaction(fromAddr, toAddr string, amount int) *Transaction {
 
 func (tx *Transaction) Sign(wallet *Wallet) error {
 	if wallet.GetAddress() != tx.FromAddr {
-		return errors.New("wrong")
+		return errors.New("ERROR: criminal detected")
 	}
 	r, s, err := ecdsa.Sign(rand.Reader, &wallet.PrivateKey, tx.ID)
 	if err != nil {
-		return err
+		return errors.New("ERROR: criminal detected")
 	}
 	signature := append(r.Bytes(), s.Bytes()...)
 	tx.Signature = signature

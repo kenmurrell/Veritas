@@ -6,8 +6,8 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
+	"errors"
 )
 
 type Portfolio struct {
@@ -43,25 +43,35 @@ func LoadPortfolio(file string) (*Portfolio, error) {
   portfolio := Portfolio{}
   portfolio.Wallets = make(map[string]*Wallet)
   if _, err := os.Stat(file); os.IsNotExist(err) {
-    log.Panic(err)
+    return nil, errors.New("ERROR: Portfolio file does not exist\n")
   }
-  content, _ := ioutil.ReadFile(file)
+  content, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, errors.New("ERROR: Cannot read portfolio file\n")
+	}
   gob.Register(elliptic.P256())
   decoder := gob.NewDecoder(bytes.NewReader(content))
   var temp Portfolio
-  err := decoder.Decode(&temp)
+  err = decoder.Decode(&temp)
+	if err != nil {
+		return nil, errors.New("ERROR: Cannot decode portfolio file\n")
+	}
   portfolio.Wallets = temp.Wallets
-  return &portfolio, err
+  return &portfolio, nil
 }
 
-func (p Portfolio) SaveToFile(file string) {
+func (p Portfolio) SaveToFile(file string) error {
   var content bytes.Buffer
   gob.Register(elliptic.P256())
   encoder := gob.NewEncoder(&content)
-  _ = encoder.Encode(&p)
-  err := ioutil.WriteFile(file, content.Bytes(), 0644)
-  if(err != nil) {
-    log.Panic(err)
-  }
+  err := encoder.Encode(&p)
+	if err != nil {
+		return errors.New("ERROR: Cannot encode portfolio\n")
+	}
+  err = ioutil.WriteFile(file, content.Bytes(), 0644)
+	if err != nil {
+		return errors.New("ERROR: Cannot save portfolio to filename\n")
+	}
+  return nil
 
 }

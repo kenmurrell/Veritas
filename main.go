@@ -1,6 +1,6 @@
 package main
 
 func main() {
-	cli := CLI{}
+	cli := start()
 	cli.Run()
 }

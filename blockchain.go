@@ -2,11 +2,8 @@ package main
 
 import (
 	"bytes"
-//	"crypto/ecdsa"
-//	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"github.com/boltdb/bolt"
@@ -34,49 +31,46 @@ func dbExists() bool {
 	return true
 }
 
-func CreateBlockchain(address string) *Blockchain {
-	// TODO: sort and open correct bc file when there are multiple
+func CreateBlockchain(file, address string) (*Blockchain, error) {
 	if dbExists() {
-		fmt.Println("--> another blockchain already exists ")
-		os.Exit(1)
+		return nil, errors.New("ERROR: Blockchain file already exists")
 	}
 	var tip []byte
-  db, err := bolt.Open(dbFile, 0600, nil)
+  db, err := bolt.Open(file, 0600, nil)
   if err != nil {
-		panic(err)
+		return nil, errors.New("ERROR: Cannot open blockchain file as database")
 	}
-	fmt.Printf("--> Creating genesis block\n")
   err = db.Update(func(tx *bolt.Tx) error {
 		bucket1, err := tx.CreateBucket([]byte(blockchainBucket))
 		if err != nil {
-			panic(err)
+			return err
 		}
 		genesistransaction := NewGenesisTransaction(address, "BLOCKCHAIN")
 		genesisblock := NewGenesisBlock(genesistransaction)
 		err = bucket1.Put(genesisblock.Hash, genesisblock.Serialize())
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 		err = bucket1.Put([]byte("l"), genesisblock.Hash)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		tip = genesisblock.Hash
 		_, err = tx.CreateBucket([]byte(miningBucket))
 		if err != nil {
-			panic(err)
+			return err
 		}
 		return nil
 	})
 	bc := Blockchain{tip, db}
-	return &bc
+	return &bc, err
 }
 
-func LoadBlockchain() *Blockchain {
+func LoadBlockchain(file string) (*Blockchain, error) {
 	var tip []byte
-	db, err := bolt.Open(dbFile, 0600, nil)
+	db, err := bolt.Open(file, 0600, nil)
 	if err != nil {
-		panic(err)
+		return nil, errors.New("ERROR: Cannot open blockchain file as database\n")
 	}
 	err = db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(blockchainBucket))
@@ -84,34 +78,32 @@ func LoadBlockchain() *Blockchain {
 		return nil
 	})
 	bc := Blockchain{tip, db}
-	return &bc
+	return &bc, err
 }
 
-func (bc *Blockchain) AddToQueue(tr *Transaction) {
+func (bc *Blockchain) AddToQueue(tr *Transaction) error {
 	err := bc.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(miningBucket))
 		err := bucket.Put(tr.ID, tr.Serialize())
 		return err
 	})
-	if(err != nil){
-		panic(err)
-	}
+	return err
 }
 
-func (bc *Blockchain) MineBlock(size int) {
-	//Get has from prev block
+func (bc *Blockchain) MineBlock(size int) error {
+	//Get hash from prev block
 	var lastHash []byte
-	err := bc.db.View(func(tx *bolt.Tx) error {
+	_ = bc.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(blockchainBucket))
 		lastHash = bucket.Get([]byte("l"))
 		return nil
 	})
-	if err != nil {
-		panic(err)
+	if lastHash == nil {
+		return errors.New("ERROR: cannot link to previous hash\n")
 	}
 	//Get the last transactions
 	txs := make([]*Transaction, 0)
-	err = bc.db.View(func(tx *bolt.Tx) error {
+	_ = bc.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(miningBucket))
 		cur := bucket.Cursor()
 		for k, v := cur.First(); k != nil && len(txs) <= size; k, v = cur.Next() {
@@ -124,27 +116,23 @@ func (bc *Blockchain) MineBlock(size int) {
 		return nil
 	})
 	if len(txs) == 0 {
-		panic(errors.New("No transactions to mine"))
-	}
-	if err != nil {
+		return errors.New("ERROR: No transactions to mine\n")
 	}
   block := NewBlock(txs, lastHash)
-	err = bc.db.Update(func(tx *bolt.Tx) error {
+	err := bc.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(blockchainBucket))
 		err := bucket.Put(block.Hash, block.Serialize())
 		if err != nil {
-			panic(err)
+			return err
 		}
 		err = bucket.Put([]byte("l"), block.Hash)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		bc.tip = block.Hash
 		return nil
 	})
-	if err != nil {
-		panic(err)
-	}
+	return err
 }
 
 func (bc *Blockchain) Iterator() *BlockchainIterator {
@@ -177,7 +165,7 @@ func (bc *Blockchain) FindTransaction(ID []byte) (Transaction, error) {
 			break
 		}
 	}
-	return Transaction{}, errors.New("Not found")
+	return Transaction{}, errors.New("Not found\n")
 }
 
 func (bc *Blockchain) CalculateBalance(address string) int {
