@@ -4,6 +4,7 @@
 ## Setup
 ```
 $ go get -u github.com/boltdb/bolt
+$ go get -u gopkg.in/yaml.v2
 ```
 
 ## Usage
