@@ -43,6 +43,9 @@ func (cli *CLI) Run() {
   mineCmd := flag.NewFlagSet("mine", flag.ExitOnError)
   mineAddr := mineCmd.String("address", "", "Address to reward for mining")
   numTx := mineCmd.Int("num", 1, "Number of transactions to put into block to mine")
+  //Find Transaction Command
+  findCmd := flag.NewFlagSet("find", flag.ExitOnError)
+  txId := findCmd.String("id", "", "Transaction ID to find")
   //Create Bc Command
 	createBcCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
   createAddr := createBcCmd.String("address", "", "Address to reward for genesis block")
@@ -62,6 +65,8 @@ func (cli *CLI) Run() {
 		_ = sendCmd.Parse(os.Args[2:])
   case "mine":
     _ = mineCmd.Parse(os.Args[2:])
+  case "find":
+    _ = findCmd.Parse(os.Args[2:])
 	case "createblockchain":
 		_ = createBcCmd.Parse(os.Args[2:])
   case "createportfolio":
@@ -97,6 +102,13 @@ func (cli *CLI) Run() {
       os.Exit(1)
     }
     cli.Mine(*mineAddr, *numTx)
+  }
+  if findCmd.Parsed() {
+    if *txId == "" {
+      findCmd.Usage()
+      os.Exit(1)
+    }
+    cli.FindTransaction(*txId)
   }
 	if createBcCmd.Parsed() {
 		if *createAddr == "" {
@@ -176,6 +188,19 @@ func (cli *CLI) Mine(address string, num int) {
     log.Panic(err.Error())
   }
   fmt.Printf("--> block mined\n")
+}
+
+func (cli *CLI) FindTransaction(hash string) {
+  bc, err := LoadBlockchain(cli.conf.BlockchainFile)
+  if err != nil {
+    log.Panic(err.Error())
+  }
+  tx, err := bc.FindTransaction(hash)
+  if err != nil {
+    log.Panic(err.Error())
+  }
+  fmt.Printf("--> transaction found\n")
+  tx.ToString()
 }
 
 func (cli *CLI) CreateBlockchain(address string) {

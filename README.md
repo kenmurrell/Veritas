@@ -9,7 +9,7 @@ $ go get -u github.com/boltdb/bolt
 ## Usage
 
 ### Creating and Using a Portfolio
-A Portfolio stores multiple Wallets and is saved locally to *portfolio.dat* by default 
+A Portfolio stores multiple Wallets and is saved locally to *portfolio.dat* by default
 ```
 $ ./Veritas createportfolio
 ```
@@ -39,8 +39,13 @@ Mining a block requires an address to send the reward and the number of transact
 ```
 $ ./Veritas mine -address 00964c39164c3936ab7aa1fd1a705b053c29af849166d5caf2 -num 5
 ```
+### Finding a Transaction
+Finding a validated transaction on the chain requires the ID of the transaction
+```
+$ ./Veritas find -id 8b7074a7d711a0abc4565d7a83aa1374191b385f7a42c7d84d6fa080e60a3631
+```
 ### Other Shenanigans
-You can print the full blockchain using *printchain* 
+You can print the full blockchain using *printchain*
 ```
 $ ./Veritas printchain
 ```

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"github.com/boltdb/bolt"
+	"encoding/hex"
 )
 
 const dbFile = "blockchain.db"
@@ -153,20 +154,24 @@ func (bci *BlockchainIterator) Next() *Block {
 	return block
 }
 
-func (bc *Blockchain) FindTransaction(ID []byte) (Transaction, error) {
+func (bc *Blockchain) FindTransaction(ID string) (*Transaction, error) {
+	byteID, err := hex.DecodeString(ID)
+	if err != nil {
+		return nil, errors.New("ERROR: Invalid transaction ID (not base 16)\n")
+	}
 	bci := bc.Iterator()
 	for {
 		block := bci.Next()
 		for _, tx := range block.Transactions {
-			if bytes.Compare(tx.ID, ID) == 0 {
-				return *tx, nil
+			if bytes.Compare(tx.ID, byteID) == 0 {
+				return tx, nil
 			}
 		}
 		if len(block.PrevHash) == 0 {
 			break
 		}
 	}
-	return Transaction{}, errors.New("ERROR: Transaction not found\n")
+	return nil, errors.New("ERROR: Transaction not found\n")
 }
 
 func (bc *Blockchain) CalculateBalance(address string) int {
